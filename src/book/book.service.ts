@@ -48,7 +48,7 @@ export class BookService {
         }
     }
 
-    async findAll(page: number = 1, pageSize: number = 10) {
+    async findAll(page: number, pageSize: number) {
         const [books, total] = await this.bookRepository.findAndCount({
             skip: (page - 1) * pageSize,
             take: pageSize,

@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { BookModule } from './book/book.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BorrowerModule } from './borrower/borrower.module';
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         synchronize: true, // Set to false in production
       })
     }),
-    BookModule
+    BookModule,
+    BorrowerModule
   ],
   controllers: [AppController],
   providers: [AppService],

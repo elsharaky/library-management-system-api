@@ -20,9 +20,9 @@ async function bootstrap() {
       transform: true,
     })
   );
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(app.get(Reflector)),
-  );
+  // app.useGlobalInterceptors(
+  //   new ClassSerializerInterceptor(app.get(Reflector)),
+  // );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Library Management System API')

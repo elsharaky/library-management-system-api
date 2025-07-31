@@ -3,7 +3,7 @@ import { BorrowerService } from './borrower.service';
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { BorrowerDto } from './dto/borrower.dto';
 import { RegisterBorrowerDto } from './dto/register-borrower.dto';
-import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
+import { CustomParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { UpdateBorrowerDto } from './dto/update-borrower.dto';
 
 @Controller('borrower')
@@ -83,8 +83,8 @@ export class BorrowerController {
     })
     @Get()
     async findAll(
-        @Query('page', new ParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new ParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
+        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
     ) {
         const borrowers = await this.borrowerService.findAll(page, pageSize);
         
@@ -119,7 +119,7 @@ export class BorrowerController {
         description: 'Invalid borrower ID provided.',
     })
     @Get(':id')
-    async findOne(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
+    async findOne(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
         const borrower = await this.borrowerService.findOne(id);
         
         return {
@@ -154,7 +154,7 @@ export class BorrowerController {
     })
     @Patch(':id')
     @HttpCode(200)
-    async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBorrowerDto: UpdateBorrowerDto) {
+    async update(@Param('id', new CustomParsePositiveIntPipe('id')) id: number, @Body() updateBorrowerDto: UpdateBorrowerDto) {
         const borrower = await this.borrowerService.update(id, updateBorrowerDto);
         
         return {
@@ -182,7 +182,7 @@ export class BorrowerController {
     })
     @Delete(':id')
     @HttpCode(204)
-    async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
+    async remove(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
         await this.borrowerService.remove(id);
         
         return {

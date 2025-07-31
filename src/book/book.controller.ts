@@ -4,7 +4,7 @@ import { CreateBookDto } from './dto/create-book.dto';
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { BookDto } from './dto/book.dto';
-import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
+import { CustomParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { SearchBookDto } from './dto/search-book.dto';
 
 @Controller('book')
@@ -81,8 +81,8 @@ export class BookController {
     })
     @Get()
     async findAll(
-        @Query('page', new ParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new ParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
+        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
     ) {
         const books = await this.bookService.findAll(page, pageSize);
 
@@ -149,7 +149,7 @@ export class BookController {
         description: 'Invalid ID provided.',
     })
     @Get(':id')
-    async findOne(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
+    async findOne(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
         const book = await this.bookService.findOne(id);
 
         return {
@@ -184,7 +184,7 @@ export class BookController {
     })
     @Patch(':id')
     @HttpCode(200)
-    async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBookDto: UpdateBookDto) {
+    async update(@Param('id', new CustomParsePositiveIntPipe('id')) id: number, @Body() updateBookDto: UpdateBookDto) {
         const book = await this.bookService.update(id, updateBookDto);
         
         return {
@@ -212,7 +212,7 @@ export class BookController {
     })
     @Delete(':id')
     @HttpCode(204)
-    async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
+    async remove(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
         await this.bookService.remove(id);
         
         return {

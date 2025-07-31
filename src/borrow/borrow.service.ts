@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, LessThan, Repository } from 'typeorm';
+import { DataSource, IsNull, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Borrow } from './entities/borrow.entity';
 import { CheckoutBorrowDto } from './dto/checkout-borrow.dto';
 import { Book } from 'src/book/entities/book.entity';
 import { Borrower } from 'src/borrower/entities/borrower.entity';
+import { Workbook } from 'exceljs';
+import { createObjectCsvStringifier } from 'csv-writer';
+import { ExportFormat } from 'src/common/enums/export-format.enum';
 
 @Injectable()
 export class BorrowService {
@@ -185,4 +188,108 @@ export class BorrowService {
             await queryRunner.release();
         }
     }
+
+    async exportBorrowsByPeriod(format: ExportFormat, startDate?: Date, endDate?: Date) {
+        const where = {};
+        if (startDate) {
+            where['borrowedDate'] = MoreThanOrEqual(startDate);
+        }
+        if (endDate) {
+            where['borrowedDate'] = LessThanOrEqual(endDate);
+        }
+        const borrows = await this.borrowRepository.find({
+            relations: ['book', 'borrower'],
+            where,
+        });
+
+        const buffer = await this.generateFile(borrows, format);
+
+        return buffer;
+    }
+
+    async exportBorrowsInLastMonth(format: ExportFormat) {
+        const currentDate = new Date();
+        const lastMonthDate = new Date(currentDate);
+        lastMonthDate.setMonth(currentDate.getMonth() - 1);
+
+        const borrows = await this.borrowRepository.find({
+            where: {
+                borrowedDate: MoreThanOrEqual(lastMonthDate),
+            },
+            relations: ['book', 'borrower'],
+        });
+
+        const buffer = await this.generateFile(borrows, format);
+
+        return buffer;
+    }
+
+    async exportBorrowsOverdue(format: ExportFormat) {
+        const currentDate = new Date();
+
+        const borrows = await this.borrowRepository.find({
+            where: {
+                dueDate: LessThan(currentDate),
+                returnedDate: IsNull(),
+            },
+            relations: ['book', 'borrower'],
+        });
+
+        const buffer = await this.generateFile(borrows, format);
+
+        return buffer;
+    }
+
+    private async generateFile(borrows: Borrow[], format: ExportFormat) {
+        if (format === ExportFormat.XLSX) {
+            const workbook = new Workbook();
+            const worksheet = workbook.addWorksheet('Borrows');
+
+        worksheet.columns = [
+            { header: 'ID', key: 'id', width: 10 },
+            { header: 'Book Title', key: 'bookTitle', width: 30 },
+            { header: 'Borrower Name', key: 'borrowerName', width: 30 },
+            { header: 'Borrowed Date', key: 'borrowedDate', width: 20 },
+            { header: 'Due Date', key: 'dueDate', width: 20 },
+            { header: 'Returned Date', key: 'returnedDate', width: 20 },
+        ];
+
+        borrows.forEach((borrow) => {
+            worksheet.addRow({
+            id: borrow.id,
+            bookTitle: borrow.book?.title,
+            borrowerName: borrow.borrower?.name,
+            borrowedDate: borrow.borrowedDate?.toISOString(),
+            dueDate: borrow.dueDate?.toISOString(),
+            returnedDate: borrow.returnedDate?.toISOString(),
+            });
+        });
+
+        return workbook.xlsx.writeBuffer();
+        }
+
+        const csvStringifier = createObjectCsvStringifier({
+        header: [
+            { id: 'id', title: 'ID' },
+            { id: 'bookTitle', title: 'Book Title' },
+            { id: 'borrowerName', title: 'Borrower Name' },
+            { id: 'borrowedDate', title: 'Borrowed Date' },
+            { id: 'dueDate', title: 'Due Date' },
+            { id: 'returnedDate', title: 'Returned Date' },
+        ],
+        });
+
+        const records = borrows.map((borrow) => ({
+        id: borrow.id,
+        bookTitle: borrow.book?.title,
+        borrowerName: borrow.borrower?.name,
+        borrowedDate: borrow.borrowedDate?.toISOString(),
+        dueDate: borrow.dueDate?.toISOString(),
+        returnedDate: borrow.returnedDate?.toISOString(),
+        }));
+
+        const csvHeader = csvStringifier.getHeaderString();
+        const csvContent = csvStringifier.stringifyRecords(records);
+        return Buffer.from(csvHeader + csvContent, 'utf-8');
+  }
 }

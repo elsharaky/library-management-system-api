@@ -9,6 +9,7 @@ import { Borrower } from './entities/borrower.entity';
     TypeOrmModule.forFeature([Borrower])
   ],
   providers: [BorrowerService],
-  controllers: [BorrowerController]
+  controllers: [BorrowerController],
+  exports: [BorrowerService],
 })
 export class BorrowerModule {}

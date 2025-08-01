@@ -72,6 +72,96 @@ docker run --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=library_
 npm run start:dev
 ```
 
+## Database Schema
+
+The system uses PostgreSQL with TypeORM and consists of three main entities:
+
+### Entity Relationship Diagram
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│     Borrower    │       │     Borrow      │       │      Book       │
+├─────────────────┤       ├─────────────────┤       ├─────────────────┤
+│ id (PK)         │◄─────┐│ id (PK)         │┌─────►│ id (PK)         │
+│ name            │      ││ borrowerId (FK) ││      │ title           │
+│ email (unique)  │      ││ bookId (FK)     ││      │ author          │
+│ password        │      ││ borrowDate      ││      │ isbn (unique)   │
+│ registeredDate  │      ││ dueDate         ││      │ availableQty    │
+│ createdAt       │      ││ returnDate      ││      │ shelfLocation   │
+│ updatedAt       │      │└─────────────────┘│      │ createdAt       │
+└─────────────────┘      └──────────────────┘      │ updatedAt       │
+                                                    └─────────────────┘
+```
+
+### Tables Schema
+
+#### Borrower Table
+```sql
+CREATE TABLE borrower (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    registered_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Book Table
+```sql
+CREATE TABLE book (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    isbn VARCHAR(13) UNIQUE NOT NULL,
+    available_quantity INTEGER NOT NULL DEFAULT 0,
+    shelf_location VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### Borrow Table
+```sql
+CREATE TABLE borrow (
+    id SERIAL PRIMARY KEY,
+    borrower_id INTEGER NOT NULL REFERENCES borrower(id) ON DELETE CASCADE,
+    book_id INTEGER NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    borrow_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    due_date DATE NOT NULL,
+    return_date TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Entity Relationships
+
+- **One-to-Many**: Borrower → Borrow (One borrower can have multiple borrows)
+- **One-to-Many**: Book → Borrow (One book can be borrowed multiple times)
+- **Many-to-One**: Borrow → Borrower (Each borrow belongs to one borrower)
+- **Many-to-One**: Borrow → Book (Each borrow is for one book)
+
+### Key Constraints
+
+- **Borrower.email**: Unique constraint to ensure no duplicate emails
+- **Book.isbn**: Unique constraint for ISBN numbers
+- **Foreign Keys**: Borrow table references both Borrower and Book tables
+- **Cascade Delete**: When a borrower or book is deleted, related borrows are also deleted
+
+### Indexes (Recommended)
+
+```sql
+-- Performance indexes
+CREATE INDEX idx_borrower_email ON borrower(email);
+CREATE INDEX idx_book_isbn ON book(isbn);
+CREATE INDEX idx_borrow_borrower_id ON borrow(borrower_id);
+CREATE INDEX idx_borrow_book_id ON borrow(book_id);
+CREATE INDEX idx_borrow_due_date ON borrow(due_date);
+CREATE INDEX idx_borrow_return_date ON borrow(return_date);
+```
+
 ## API Documentation
 
 Access the Swagger documentation at: `http://localhost:3000/api/v1/docs`

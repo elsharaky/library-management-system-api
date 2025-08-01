@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Borrower } from './entities/borrower.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -14,37 +14,31 @@ export class BorrowerService {
     ){}
 
     async register(createBorrowerDto: RegisterBorrowerDto) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+        // Check if the borrower with the same email already exists
+        const existingBorrower = await this.borrowerRepository.findOneBy({
+            email: createBorrowerDto.email,
+        });
+        if (existingBorrower) {
+            throw new BadRequestException(`A borrower with email ${createBorrowerDto.email} already exists.`);
+        }
+
+        // Create a new borrower entity
+        const borrower = this.borrowerRepository.create({
+            ...createBorrowerDto,
+            registeredDate: new Date(),
+        });
 
         try {
-            // Check if the borrower with the same email already exists
-            const existingBorrower = await queryRunner.manager.findOne(Borrower, {
-                where: { email: createBorrowerDto.email },
-            });
-            if (existingBorrower) {
+            // Save the borrower entity to the database
+            const savedBorrower = await this.borrowerRepository.save(borrower);
+            return savedBorrower;
+        } catch (error) {
+            // Handle any errors that occur during the save operation
+            if (error.code === '23505') { // Unique constraint violation
                 throw new BadRequestException(`A borrower with email ${createBorrowerDto.email} already exists.`);
             }
 
-            // Create a new borrower entity
-            const borrower = queryRunner.manager.create(Borrower, {
-                ...createBorrowerDto,
-                registeredDate: new Date(),
-            });
-
-            // Save the borrower entity to the database
-            const savedBorrower = await queryRunner.manager.save(borrower);
-
-            // Commit the transaction
-            await queryRunner.commitTransaction();
-
-            return savedBorrower;
-        } catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        } finally {
-            await queryRunner.release();
+            throw new InternalServerErrorException(`Failed to register borrower: ${error.message}`); // Handle other errors
         }
     }
 
@@ -88,10 +82,18 @@ export class BorrowerService {
         // Update the borrower entity
         Object.assign(borrower, updateBorrowerDto);
 
-        // Save the updated borrower entity to the database
-        const updatedBorrower = await this.borrowerRepository.save(borrower);
-        
-        return updatedBorrower;
+        try {
+            // Save the updated borrower entity to the database
+            const updatedBorrower = await this.borrowerRepository.save(borrower);
+            return updatedBorrower;
+        } catch (error) {
+            // Handle any errors that occur during the save operation
+            if (error.code === '23505') { // Unique constraint violation
+                throw new BadRequestException(`A borrower with email ${updateBorrowerDto.email} already exists.`);
+            }
+
+            throw new BadRequestException(`Failed to update borrower with ID ${id}: ${error.message}`);
+        }
     }
 
     async remove(id: number) {

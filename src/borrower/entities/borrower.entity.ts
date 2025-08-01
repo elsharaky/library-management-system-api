@@ -1,5 +1,5 @@
 import { Borrow } from "src/borrow/entities/borrow.entity";
-import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Check, Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 @Index(['email'], { unique: true })
@@ -7,10 +7,10 @@ export class Borrower {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ length: 255 })
   name: string;
 
-  @Column()
+  @Column({ length: 255 })
   email: string;
 
   @Column()

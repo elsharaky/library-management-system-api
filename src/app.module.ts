@@ -6,6 +6,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BorrowerModule } from './borrower/borrower.module';
 import { BorrowModule } from './borrow/borrow.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -17,20 +20,31 @@ import { BorrowModule } from './borrow/borrow.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.getOrThrow('DB_HOST'),
-        port: configService.getOrThrow('DB_PORT'),
-        username: configService.getOrThrow('DB_USERNAME'),
-        password: configService.getOrThrow('DB_PASSWORD'),
-        database: configService.getOrThrow('DB_NAME'),
+        host: configService.getOrThrow<string>('DB_HOST'),
+        port: configService.getOrThrow<number>('DB_PORT'),
+        username: configService.getOrThrow<string>('DB_USERNAME'),
+        password: configService.getOrThrow<string>('DB_PASSWORD'),
+        database: configService.getOrThrow<string>('DB_NAME'),
+        synchronize: configService.getOrThrow<boolean>('DB_SYNC'), // Set to false in production
         autoLoadEntities: true,
-        synchronize: true, // Set to false in production
       })
+    }),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [{
+          ttl: configService.getOrThrow<number>('THROTTLER_TTL_IN_SECONDS') * 1000, // Convert seconds to milliseconds
+          limit: configService.getOrThrow<number>('THROTTLER_LIMIT'),
+        }],
+      }),
     }),
     BookModule,
     BorrowerModule,
-    BorrowModule
+    BorrowModule,
+    HealthModule
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

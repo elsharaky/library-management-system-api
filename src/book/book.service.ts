@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { CreateBookDto } from './dto/create-book.dto';
 import { Book } from './entities/book.entity';
@@ -15,36 +15,30 @@ export class BookService {
     ) {}
 
     async create(createBookDto: CreateBookDto) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+        // Check if the book with the same ISBN already exists
+        const existingBook = await this.bookRepository.findOneBy({
+            isbn: createBookDto.isbn,
+        });
+        if (existingBook) {
+            throw new BadRequestException(`A book with ISBN ${createBookDto.isbn} already exists.`);
+        }
+        
+        // Create a new book entity
+        const book = this.bookRepository.create({
+            ...createBookDto,
+        });
 
         try {
-            // Check if the book with the same ISBN already exists
-            const existingBook = await queryRunner.manager.findOne(Book, {
-                where: { isbn: createBookDto.isbn },
-            });
-            if (existingBook) {
-                throw new BadRequestException(`A book with ISBN ${createBookDto.isbn} already exists.`);
-            }
-            
-            // Create a new book entity
-            const book = queryRunner.manager.create(Book, {
-                ...createBookDto,
-            });
-
             // Save the book entity to the database
-            const savedBook = await queryRunner.manager.save(book);
-
-            // Commit the transaction
-            await queryRunner.commitTransaction();
-
+            const savedBook = await this.bookRepository.save(book);
             return savedBook;
         } catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        } finally {
-            await queryRunner.release();
+            // Handle any errors that occur during the save operation
+            if (error.code === '23505') { // Unique constraint violation
+                throw new BadRequestException(`A book with ISBN ${createBookDto.isbn} already exists.`);
+            }
+
+            throw new InternalServerErrorException('Failed to create book.'); // Handle other errors
         }
     }
 
@@ -88,10 +82,18 @@ export class BookService {
         // Update the book's properties
         Object.assign(book, updateBookDto);
 
-        // Save the updated book entity to the database
-        const updatedBook = await this.bookRepository.save(book);
+        try {
+            // Save the updated book entity to the database
+            const updatedBook = await this.bookRepository.save(book);
+            return updatedBook;
+        } catch (error) {
+            // Handle any errors that occur during the save operation
+            if (error.code === '23505') { // Unique constraint violation
+                throw new BadRequestException(`A book with ISBN ${updateBookDto.isbn} already exists.`);
+            }
 
-        return updatedBook;
+            throw new InternalServerErrorException(`Failed to update book with ID ${id}.`); // Handle other errors
+        }
     }
 
     async remove(id: number) {

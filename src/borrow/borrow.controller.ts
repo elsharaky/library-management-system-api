@@ -1,13 +1,13 @@
-import { Body, Controller, DefaultValuePipe, Get, HttpCode, Param, ParseDatePipe, ParseEnumPipe, Patch, Post, Query, StreamableFile } from '@nestjs/common';
+import { Body, ClassSerializerInterceptor, Controller, DefaultValuePipe, Get, HttpCode, Param, ParseDatePipe, ParseEnumPipe, Patch, Post, Query, StreamableFile, UseInterceptors } from '@nestjs/common';
 import { BorrowService } from './borrow.service';
 import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { BorrowDto } from './dto/borrow.dto';
 import { CheckoutBorrowDto } from './dto/checkout-borrow.dto';
-import { CustomParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
-import { CustomParseDatePipe } from 'src/common/pipes/parse-date.pipe';
-import { Readable } from 'stream';
-import { ExportFormat } from 'src/common/enums/export-format.enum';
-import { CustomParseExportFormatEnumPipe } from 'src/common/pipes/parse-export-format-enum.pipe';
+import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { ExportBorrowsWithPeriodDto } from './dto/export-borrows-with-period.dto';
+import { ExportBorrowsDto, ExportFormat } from './dto/export-borrows.dto';
+import { FindAllBorrowsByBorrowerDto } from './dto/find-borrows-by-borrower.dto';
 
 @Controller('borrow')
 @ApiExtraModels(BorrowDto)
@@ -33,8 +33,15 @@ export class BorrowController {
     @ApiBadRequestResponse({
         description: 'Invalid data provided.',
     })
+    @ApiNotFoundResponse({
+        description: 'Book or borrower not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while borrowing the book.',
+    })
     @Post()
     @HttpCode(201)
+    @UseInterceptors(ClassSerializerInterceptor)
     async borrow(@Body() borrowDto: CheckoutBorrowDto) {
         const borrow = await this.borrowService.borrow(borrowDto);
         
@@ -47,22 +54,6 @@ export class BorrowController {
     @ApiOperation({
         summary: 'Get all borrows',
         description: 'This endpoint retrieves all borrow records from the library system.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        description: 'Page number for pagination',
-        type: Number,
-        example: 1,
-        default: 1,
-    })
-    @ApiQuery({
-        name: 'pageSize',
-        required: false,
-        description: 'Number of borrows per page',
-        type: Number,
-        example: 10,
-        default: 10,
     })
     @ApiOkResponse({
         description: 'Borrows retrieved successfully',
@@ -85,12 +76,18 @@ export class BorrowController {
             },
         },
     })
+    @ApiBadRequestResponse({
+        description: 'Invalid pagination parameters provided.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the borrows.',
+    })
     @Get()
+    @UseInterceptors(ClassSerializerInterceptor)
     async findAll(
-        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query() pagination: PaginationDto,
     ) {
-        const borrows = await this.borrowService.findAll(page, pageSize);
+        const borrows = await this.borrowService.findAll(pagination.page, pagination.pageSize);
 
         return {
             message: 'Borrows retrieved successfully',
@@ -102,27 +99,8 @@ export class BorrowController {
         summary: 'Export all borrows by period',
         description: 'This endpoint exports all borrow records to a CSV or Xlsx file with optional period filtering.'
     })
-    @ApiQuery({
-        name: 'format',
-        required: false,
-        description: 'Format of the export file (csv or xlsx)',
-        enum: ExportFormat,
-        example: ExportFormat.CSV,
-        default: ExportFormat.CSV,
-    })
-    @ApiQuery({
-        name: 'startDate',
-        required: false,
-        description: 'Start date for filtering borrows (YYYY-MM-DD)',
-        type: String,
-        example: '2023-01-01',
-    })
-    @ApiQuery({
-        name: 'endDate',
-        required: false,
-        description: 'End date for filtering borrows (YYYY-MM-DD)',
-        type: String,
-        example: '2023-12-31',
+    @ApiOkResponse({
+        description: 'Borrows exported successfully',
     })
     @ApiBadRequestResponse({
         description: 'Invalid date format or file format provided.',
@@ -132,15 +110,13 @@ export class BorrowController {
     })
     @Get('export')
     async exportAll(
-        @Query('format', new CustomParseExportFormatEnumPipe('format')) format: ExportFormat,
-        @Query('startDate', new CustomParseDatePipe('startDate')) startDate?: Date,
-        @Query('endDate', new CustomParseDatePipe('endDate')) endDate?: Date,
+        @Query() exportWithPeriodQuery: ExportBorrowsWithPeriodDto,
     ) {
-        const buffer = await this.borrowService.exportBorrowsByPeriod(format, startDate, endDate);
+        const buffer = await this.borrowService.exportBorrowsByPeriod(exportWithPeriodQuery.format, exportWithPeriodQuery.startDate, exportWithPeriodQuery.endDate);
 
         return new StreamableFile(new Uint8Array(buffer), {
-            type: this.getMimeType(format),
-            disposition: `attachment; filename=borrows.${format}`,
+            type: this.getMimeType(exportWithPeriodQuery.format),
+            disposition: `attachment; filename=borrows.${exportWithPeriodQuery.format}`,
         });
     }
 
@@ -148,13 +124,8 @@ export class BorrowController {
         summary: 'Export all borrows in the last month',
         description: 'This endpoint exports all borrow records to a CSV or Xlsx file in the last month.'
     })
-    @ApiQuery({
-        name: 'format',
-        required: false,
-        description: 'Format of the export file (csv or xlsx)',
-        enum: ExportFormat,
-        example: ExportFormat.CSV,
-        default: ExportFormat.CSV,
+    @ApiOkResponse({
+        description: 'Borrows exported successfully',
     })
     @ApiBadRequestResponse({
         description: 'Invalid file format provided.',
@@ -164,13 +135,13 @@ export class BorrowController {
     })
     @Get('export/last-month')
     async exportAllInLastMonth(
-        @Query('format', new CustomParseExportFormatEnumPipe('format')) format: ExportFormat,
+        @Query() exportQuery: ExportBorrowsDto,
     ) {
-        const buffer = await this.borrowService.exportBorrowsInLastMonth(format);
+        const buffer = await this.borrowService.exportBorrowsInLastMonth(exportQuery.format);
 
         return new StreamableFile(new Uint8Array(buffer), {
-            type: this.getMimeType(format),
-            disposition: `attachment; filename=borrows.${format}`,
+            type: this.getMimeType(exportQuery.format),
+            disposition: `attachment; filename=borrows.${exportQuery.format}`,
         });
     }
 
@@ -178,13 +149,8 @@ export class BorrowController {
         summary: 'Export all overdue borrows',
         description: 'This endpoint exports all overdue borrow records to a CSV or Xlsx file.'
     })
-    @ApiQuery({
-        name: 'format',
-        required: false,
-        description: 'Format of the export file (csv or xlsx)',
-        enum: ExportFormat,
-        example: ExportFormat.CSV,
-        default: ExportFormat.CSV,
+    @ApiOkResponse({
+        description: 'Overdue borrows exported successfully',
     })
     @ApiBadRequestResponse({
         description: 'Invalid file format provided.',
@@ -194,13 +160,13 @@ export class BorrowController {
     })
     @Get('export/overdue')
     async exportAllOverdue(
-        @Query('format', new CustomParseExportFormatEnumPipe('format')) format: ExportFormat,
+        @Query() exportQuery: ExportBorrowsDto,
     ) {
-        const buffer = await this.borrowService.exportBorrowsOverdue(format);
+        const buffer = await this.borrowService.exportBorrowsOverdue(exportQuery.format);
 
         return new StreamableFile(new Uint8Array(buffer), {
-            type: this.getMimeType(format),
-            disposition: `attachment; filename=borrows.${format}`,
+            type: this.getMimeType(exportQuery.format),
+            disposition: `attachment; filename=borrows.${exportQuery.format}`,
         });
     }
 
@@ -214,22 +180,6 @@ export class BorrowController {
         description: 'ID of the borrower to filter borrows',
         type: Number,
         example: 1,
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        description: 'Page number for pagination',
-        type: Number,
-        example: 1,
-        default: 1,
-    })
-    @ApiQuery({
-        name: 'pageSize',
-        required: false,
-        description: 'Number of borrows per page',
-        type: Number,
-        example: 10,
-        default: 10,
     })
     @ApiOkResponse({
         description: 'Borrows retrieved successfully for the specified borrower',
@@ -253,18 +203,20 @@ export class BorrowController {
         },
     })
     @ApiBadRequestResponse({
-        description: 'Invalid borrower ID.',
+        description: 'Invalid borrower ID or pagination parameters provided.',
     })
     @ApiNotFoundResponse({
         description: 'Borrower not found.',
     })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the borrows for the specified borrower.',
+    })
     @Get('borrower/:borrowerId')
+    @UseInterceptors(ClassSerializerInterceptor)
     async findAllByBorrowerId(
-        @Param('borrowerId', new CustomParsePositiveIntPipe('borrowerId')) borrowerId: number,
-        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query() findAllByBorrowerDto: FindAllBorrowsByBorrowerDto,
     ) {
-        const borrows = await this.borrowService.findAllByBorrowerId(borrowerId, page, pageSize);
+        const borrows = await this.borrowService.findAllByBorrowerId(findAllByBorrowerDto.borrowerId, findAllByBorrowerDto.page, findAllByBorrowerDto.pageSize);
 
         return {
             message: 'Borrows retrieved successfully for the specified borrower',
@@ -275,22 +227,6 @@ export class BorrowController {
     @ApiOperation({
         summary: 'Get all overdue borrows',
         description: 'This endpoint retrieves all borrow records that are overdue.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        description: 'Page number for pagination',
-        type: Number,
-        example: 1,
-        default: 1,
-    })
-    @ApiQuery({
-        name: 'pageSize',
-        required: false,
-        description: 'Number of borrows per page',
-        type: Number,
-        example: 10,
-        default: 10,
     })
     @ApiOkResponse({
         description: 'Overdue borrows retrieved successfully',
@@ -313,12 +249,18 @@ export class BorrowController {
             },
         },
     })
+    @ApiBadRequestResponse({
+        description: 'Invalid pagination parameters provided.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the overdue borrows.',
+    })
     @Get('overdue')
+    @UseInterceptors(ClassSerializerInterceptor)
     async findAllOverdue(
-        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query() pagination: PaginationDto,
     ) {
-        const overdueBorrows = await this.borrowService.findAllOverdue(page, pageSize);
+        const overdueBorrows = await this.borrowService.findAllOverdue(pagination.page, pagination.pageSize);
 
         return {
             message: 'Overdue borrows retrieved successfully',
@@ -348,10 +290,17 @@ export class BorrowController {
         },
     })
     @ApiBadRequestResponse({
-        description: 'Invalid data provided.',
+        description: 'Invalid borrow ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Borrow not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while returning the book.',
     })
     @Patch(':borrowId/return')
-    async returnBook(@Param('borrowId', new CustomParsePositiveIntPipe('borrowId')) borrowId: number) {
+    @UseInterceptors(ClassSerializerInterceptor)
+    async returnBook(@Param('borrowId', new ParsePositiveIntPipe('borrowId')) borrowId: number) {
         const borrow = await this.borrowService.returnBook(borrowId);
         
         return {

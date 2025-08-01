@@ -7,7 +7,7 @@ import { Book } from 'src/book/entities/book.entity';
 import { Borrower } from 'src/borrower/entities/borrower.entity';
 import { Workbook } from 'exceljs';
 import { createObjectCsvStringifier } from 'csv-writer';
-import { ExportFormat } from 'src/common/enums/export-format.enum';
+import { ExportFormat } from './dto/export-borrows.dto';
 
 @Injectable()
 export class BorrowService {
@@ -50,7 +50,7 @@ export class BorrowService {
             await queryRunner.manager.save(book);
 
             // Create the borrow record
-            const borrow = this.borrowRepository.create({
+            const borrow = queryRunner.manager.create(Borrow, {
                 book,
                 borrower,
                 borrowedDate: borrowDto.borrowedDate || new Date(),

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 
 @Injectable()
-export class CustomParsePositiveIntPipe implements PipeTransform<number, number> {
+export class ParsePositiveIntPipe implements PipeTransform<number, number> {
     constructor(private readonly field: string) {}
     
     transform(value: number): number {

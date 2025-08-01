@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { BorrowerService } from './borrower.service';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { BorrowerDto } from './dto/borrower.dto';
 import { RegisterBorrowerDto } from './dto/register-borrower.dto';
-import { CustomParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
+import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { UpdateBorrowerDto } from './dto/update-borrower.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Controller('borrower')
 @ApiExtraModels(BorrowerDto)
@@ -30,6 +31,9 @@ export class BorrowerController {
     @ApiBadRequestResponse({
         description: 'Invalid data provided.',
     })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while registering the borrower.',
+    })
     @Post()
     @HttpCode(201)
     async register(@Body() createBorrowerDto: RegisterBorrowerDto) {
@@ -43,22 +47,6 @@ export class BorrowerController {
     @ApiOperation({
         summary: 'Get all borrowers',
         description: 'This endpoint retrieves all borrowers from the library system.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        description: 'Page number for pagination',
-        type: Number,
-        example: 1,
-        default: 1,
-    })
-    @ApiQuery({
-        name: 'pageSize',
-        required: false,
-        description: 'Number of borrowers per page',
-        type: Number,
-        example: 10,
-        default: 10,
     })
     @ApiOkResponse({
         description: 'Borrowers retrieved successfully',
@@ -81,13 +69,18 @@ export class BorrowerController {
             },
         },
     })
+    @ApiBadRequestResponse({
+        description: 'Invalid pagination parameters provided.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the borrowers.',
+    })
     @Get()
     async findAll(
-        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query() pagination: PaginationDto,
     ) {
-        const borrowers = await this.borrowerService.findAll(page, pageSize);
-        
+        const borrowers = await this.borrowerService.findAll(pagination.page, pagination.pageSize);
+
         return {
             message: 'Borrowers retrieved successfully',
             data: borrowers,
@@ -116,10 +109,16 @@ export class BorrowerController {
         },
     })
     @ApiBadRequestResponse({
-        description: 'Invalid borrower ID provided.',
+        description: 'Invalid ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Borrower not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the borrower.',
     })
     @Get(':id')
-    async findOne(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
+    async findOne(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         const borrower = await this.borrowerService.findOne(id);
         
         return {
@@ -150,11 +149,17 @@ export class BorrowerController {
         },
     })
     @ApiBadRequestResponse({
-        description: 'Invalid data provided or borrower not found.',
+        description: 'Invalid data or ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Borrower not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while updating the borrower.',
     })
     @Patch(':id')
     @HttpCode(200)
-    async update(@Param('id', new CustomParsePositiveIntPipe('id')) id: number, @Body() updateBorrowerDto: UpdateBorrowerDto) {
+    async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBorrowerDto: UpdateBorrowerDto) {
         const borrower = await this.borrowerService.update(id, updateBorrowerDto);
         
         return {
@@ -178,11 +183,17 @@ export class BorrowerController {
         description: 'Borrower deleted successfully',
     })
     @ApiBadRequestResponse({
-        description: 'Invalid ID provided or borrower not found.',
+        description: 'Invalid ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Borrower not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while deleting the borrower.',
     })
     @Delete(':id')
     @HttpCode(204)
-    async remove(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
+    async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         await this.borrowerService.remove(id);
         
         return {

@@ -1,11 +1,12 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { BookDto } from './dto/book.dto';
-import { CustomParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
+import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { SearchBookDto } from './dto/search-book.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Controller('book')
 @ApiExtraModels(BookDto)
@@ -31,6 +32,9 @@ export class BookController {
     @ApiBadRequestResponse({
         description: 'Invalid data provided.',
     })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while creating the book.',
+    })
     @Post()
     @HttpCode(201)
     async create(@Body() createBookDto: CreateBookDto) {
@@ -44,22 +48,6 @@ export class BookController {
     @ApiOperation({
         summary: 'Get all books',
         description: 'This endpoint retrieves all books from the library system.'
-    })
-    @ApiQuery({
-        name: 'page',
-        required: false,
-        description: 'Page number for pagination',
-        type: Number,
-        example: 1,
-        default: 1,
-    })
-    @ApiQuery({
-        name: 'pageSize',
-        required: false,
-        description: 'Number of books per page',
-        type: Number,
-        example: 10,
-        default: 10,
     })
     @ApiOkResponse({
         description: 'Books retrieved successfully',
@@ -79,12 +67,17 @@ export class BookController {
             },
         },
     })
+    @ApiBadRequestResponse({
+        description: 'Invalid pagination parameters provided.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the books.',
+    })
     @Get()
     async findAll(
-        @Query('page', new CustomParsePositiveIntPipe('page')) page: number = 1,
-        @Query('pageSize', new CustomParsePositiveIntPipe('pageSize')) pageSize: number = 10,
+        @Query() pagination: PaginationDto,
     ) {
-        const books = await this.bookService.findAll(page, pageSize);
+        const books = await this.bookService.findAll(pagination.page, pagination.pageSize);
 
         return {
             message: 'Books retrieved successfully',
@@ -111,6 +104,9 @@ export class BookController {
     })
     @ApiBadRequestResponse({
         description: 'Invalid search query provided.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while searching for books.',
     })
     @Get('search')
     async search(
@@ -148,8 +144,14 @@ export class BookController {
     @ApiBadRequestResponse({
         description: 'Invalid ID provided.',
     })
+    @ApiNotFoundResponse({
+        description: 'Book not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while retrieving the book.',
+    })
     @Get(':id')
-    async findOne(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
+    async findOne(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         const book = await this.bookService.findOne(id);
 
         return {
@@ -180,11 +182,17 @@ export class BookController {
         },
     })
     @ApiBadRequestResponse({
-        description: 'Invalid data provided or book not found.',
+        description: 'Invalid data or ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Book not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while updating the book.',
     })
     @Patch(':id')
     @HttpCode(200)
-    async update(@Param('id', new CustomParsePositiveIntPipe('id')) id: number, @Body() updateBookDto: UpdateBookDto) {
+    async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBookDto: UpdateBookDto) {
         const book = await this.bookService.update(id, updateBookDto);
         
         return {
@@ -208,11 +216,17 @@ export class BookController {
         description: 'Book deleted successfully',
     })
     @ApiBadRequestResponse({
-        description: 'Invalid ID provided or book not found.',
+        description: 'Invalid ID provided.',
+    })
+    @ApiNotFoundResponse({
+        description: 'Book not found.',
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'An error occurred while deleting the book.',
     })
     @Delete(':id')
     @HttpCode(204)
-    async remove(@Param('id', new CustomParsePositiveIntPipe('id')) id: number) {
+    async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         await this.bookService.remove(id);
         
         return {

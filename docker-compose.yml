@@ -17,26 +17,26 @@ services:
     networks:
       - library-management-system-network
 
-  # library-management-system-api:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: library-management-system-api
-  #   restart: unless-stopped
-  #   env_file: .env
-  #   environment:
-  #     - DB_HOST=postgres # We use the service name as the host in Docker Compose but in the local environment, it will be the actual host from the .env file.
-  #   ports:
-  #     - ${API_PORT}:${API_PORT}
-  #   depends_on:
-  #     - postgres
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:${API_PORT}/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #   networks:
-  #     - library-management-system-network
+  library-management-system-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library-management-system-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_HOST=postgres # We use the service name as the host in Docker Compose but in the local environment, it will be the actual host from the .env file.
+    ports:
+      - ${API_PORT}:${API_PORT}
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - library-management-system-network
 
 networks:
   library-management-system-network:

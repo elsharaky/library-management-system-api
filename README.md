@@ -16,6 +16,7 @@ A RESTful API for managing a library system built with NestJS, TypeScript, and P
 - ✅ **Dockerization**: Complete Docker setup with PostgreSQL
 - ✅ **API Documentation**: Swagger/OpenAPI documentation
 - ✅ **Input Validation**: Request validation and error handling
+- ✅ **Logging**: Service logging
 
 ## Technology Stack
 
@@ -73,7 +74,7 @@ npm run start:dev
 
 ## API Documentation
 
-Access the Swagger documentation at: `http://localhost:${API_PORT}/api/v1/docs`
+Access the Swagger documentation at: `http://localhost:3000/api/v1/docs`
 
 ### Authentication
 

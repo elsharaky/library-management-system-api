@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, LessThan, LessThanOrEqual, MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Borrow } from './entities/borrow.entity';
@@ -16,6 +16,7 @@ export class BorrowService {
         @InjectRepository(Borrow)
         private readonly borrowRepository: Repository<Borrow>,
     ){}
+    private readonly logger = new Logger(BorrowService.name);
 
     async borrow(borrowDto: CheckoutBorrowDto) {
         const queryRunner = this.dataSource.createQueryRunner();
@@ -24,16 +25,19 @@ export class BorrowService {
 
         try {
             // Retrieve the book to be borrowed
+            this.logger.log(`Borrowing book with ID: ${borrowDto.bookId} for borrower ID: ${borrowDto.borrowerId}`);
             const book = await queryRunner.manager.findOne(Book, {
                 where: { id: borrowDto.bookId },
                 lock: { mode: 'pessimistic_write' },
             });
             if (!book) {
+                this.logger.warn(`Book with ID ${borrowDto.bookId} not found.`);
                 throw new NotFoundException(`Book with ID ${borrowDto.bookId} not found.`);
             }
 
             // Check if book quantity is sufficient
             if (book.availableQuantity <= 0) {
+                this.logger.warn(`Book with ID ${borrowDto.bookId} is not available for borrowing.`);
                 throw new BadRequestException(`Book with ID ${borrowDto.bookId} is not available for borrowing.`);
             }
 
@@ -42,6 +46,7 @@ export class BorrowService {
                 where: { id: borrowDto.borrowerId },
             });
             if (!borrower) {
+                this.logger.warn(`Borrower with ID ${borrowDto.borrowerId} not found.`);
                 throw new NotFoundException(`Borrower with ID ${borrowDto.borrowerId} not found.`);
             }
 
@@ -62,6 +67,7 @@ export class BorrowService {
 
             // Commit the transaction
             await queryRunner.commitTransaction();
+            this.logger.log(`Book with ID ${borrowDto.bookId} borrowed successfully by borrower ID: ${borrowDto.borrowerId}`);
 
             // Retrieve the saved borrow record to return
             const savedBorrow = await queryRunner.manager.findOne(Borrow, {
@@ -79,11 +85,15 @@ export class BorrowService {
     }
 
     async findAll(page: number, pageSize: number) {
+        this.logger.log(`Fetching all borrows with pagination: page ${page}, pageSize ${pageSize}`);
+
         const [borrows, total] = await this.borrowRepository.findAndCount({
             skip: (page - 1) * pageSize,
             take: pageSize,
             relations: ['book', 'borrower'],
         });
+
+        this.logger.log(`Found ${total} borrows.`);
 
         return {
             borrows,
@@ -94,12 +104,16 @@ export class BorrowService {
     }
 
     async findAllByBorrowerId(borrowerId: number, page: number, pageSize: number) {
+        this.logger.log(`Fetching all borrows for borrower ID: ${borrowerId} with pagination: page ${page}, pageSize ${pageSize}`);
+
         const [borrows, total] = await this.borrowRepository.findAndCount({
             where: { borrower: { id: borrowerId } },
             skip: (page - 1) * pageSize,
             take: pageSize,
             relations: ['book', 'borrower'],
         });
+
+        this.logger.log(`Found ${total} borrows for borrower ID: ${borrowerId}.`);
 
         return {
             borrows,
@@ -110,6 +124,8 @@ export class BorrowService {
     }
 
     async findAllOverdue(page: number, pageSize: number) {
+        this.logger.log(`Fetching all overdue borrows with pagination: page ${page}, pageSize ${pageSize}`);
+        
         const currentDate = new Date();
         const [borrows, total] = await this.borrowRepository.findAndCount({
             where: {
@@ -120,6 +136,8 @@ export class BorrowService {
             take: pageSize,
             relations: ['book', 'borrower'],
         });
+
+        this.logger.log(`Found ${total} overdue borrows.`);
 
         return {
             borrows,
@@ -136,11 +154,13 @@ export class BorrowService {
 
         try {
             // Retrieve the borrow record to be returned
+            this.logger.log(`Returning borrow record with ID: ${borrowId}`);
             const borrow = await queryRunner.manager.findOne(Borrow, {
                 where: { id: borrowId },
                 lock: { mode: 'pessimistic_write' },
             });
             if (!borrow) {
+                this.logger.warn(`Borrow record with ID ${borrowId} not found.`);
                 throw new NotFoundException(`Borrow record with ID ${borrowId} not found.`);
             }
 
@@ -150,11 +170,13 @@ export class BorrowService {
                 lock: { mode: 'pessimistic_write' },
             });
             if (!book) {
+                this.logger.warn(`Book with ID ${borrow.bookId} not found.`);
                 throw new NotFoundException(`Book with ID ${borrow.bookId} not found.`);
             }
 
             // Check if the book is already returned
             if (borrow.returnedDate) {
+                this.logger.warn(`Book with ID ${borrow.bookId} has already been returned.`);
                 throw new BadRequestException(`Book with ID ${borrow.bookId} has already been returned.`);
             }
 
@@ -173,6 +195,7 @@ export class BorrowService {
 
             // Commit the transaction
             await queryRunner.commitTransaction();
+            this.logger.log(`Book with ID ${borrow.bookId} returned successfully.`);
 
             // Retrieve the updated borrow record to return
             const updatedBorrow = await queryRunner.manager.findOne(Borrow, {
@@ -190,6 +213,8 @@ export class BorrowService {
     }
 
     async exportBorrowsByPeriod(format: ExportFormat, startDate?: Date, endDate?: Date) {
+        this.logger.log(`Exporting borrows from ${startDate?.toISOString()} to ${endDate?.toISOString()} in format: ${format}`);
+
         const where = {};
         if (startDate) {
             where['borrowedDate'] = MoreThanOrEqual(startDate);
@@ -202,12 +227,18 @@ export class BorrowService {
             where,
         });
 
+        this.logger.log(`Found ${borrows.length} borrows for export.`);
+
         const buffer = await this.generateFile(borrows, format);
+
+        this.logger.log(`Exported borrows successfully in format: ${format}`);
 
         return buffer;
     }
 
     async exportBorrowsInLastMonth(format: ExportFormat) {
+        this.logger.log(`Exporting borrows from the last month in format: ${format}`);
+
         const currentDate = new Date();
         const lastMonthDate = new Date(currentDate);
         lastMonthDate.setMonth(currentDate.getMonth() - 1);
@@ -219,12 +250,18 @@ export class BorrowService {
             relations: ['book', 'borrower'],
         });
 
+        this.logger.log(`Found ${borrows.length} borrows from the last month for export.`);
+
         const buffer = await this.generateFile(borrows, format);
+
+        this.logger.log(`Exported borrows from the last month successfully in format: ${format}`);
 
         return buffer;
     }
 
     async exportBorrowsOverdue(format: ExportFormat) {
+        this.logger.log(`Exporting overdue borrows in format: ${format}`);
+
         const currentDate = new Date();
 
         const borrows = await this.borrowRepository.find({
@@ -235,7 +272,11 @@ export class BorrowService {
             relations: ['book', 'borrower'],
         });
 
+        this.logger.log(`Found ${borrows.length} overdue borrows for export.`);
+
         const buffer = await this.generateFile(borrows, format);
+
+        this.logger.log(`Exported overdue borrows successfully in format: ${format}`);
 
         return buffer;
     }

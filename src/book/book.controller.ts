@@ -1,7 +1,7 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
-import { ApiBadRequestResponse, ApiBasicAuth, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBasicAuth, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, getSchemaPath } from '@nestjs/swagger';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { BookDto } from './dto/book.dto';
 import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';

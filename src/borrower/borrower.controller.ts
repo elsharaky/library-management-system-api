@@ -1,14 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, ClassSerializerInterceptor, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import { BorrowerService } from './borrower.service';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBasicAuth, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { BorrowerDto } from './dto/borrower.dto';
 import { RegisterBorrowerDto } from './dto/register-borrower.dto';
 import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { UpdateBorrowerDto } from './dto/update-borrower.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { BasicAuthGuard } from 'src/auth/basic-auth.gaurd';
 
 @Controller('borrower')
 @ApiExtraModels(BorrowerDto)
+@UseInterceptors(ClassSerializerInterceptor)
 export class BorrowerController {
     constructor(
         private readonly borrowerService: BorrowerService,
@@ -75,7 +77,9 @@ export class BorrowerController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while retrieving the borrowers.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get()
+    @UseGuards(BasicAuthGuard)
     async findAll(
         @Query() pagination: PaginationDto,
     ) {
@@ -117,7 +121,9 @@ export class BorrowerController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while retrieving the borrower.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get(':id')
+    @UseGuards(BasicAuthGuard)
     async findOne(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         const borrower = await this.borrowerService.findOne(id);
         
@@ -157,8 +163,10 @@ export class BorrowerController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while updating the borrower.',
     })
+    @ApiBasicAuth('basic-auth')
     @Patch(':id')
     @HttpCode(200)
+    @UseGuards(BasicAuthGuard)
     async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBorrowerDto: UpdateBorrowerDto) {
         const borrower = await this.borrowerService.update(id, updateBorrowerDto);
         
@@ -191,8 +199,10 @@ export class BorrowerController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while deleting the borrower.',
     })
+    @ApiBasicAuth('basic-auth')
     @Delete(':id')
     @HttpCode(204)
+    @UseGuards(BasicAuthGuard)
     async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         await this.borrowerService.remove(id);
         

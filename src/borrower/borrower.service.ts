@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { RegisterBorrowerDto } from './dto/register-borrower.dto';
 import { UpdateBorrowerDto } from './dto/update-borrower.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class BorrowerService {
@@ -22,9 +23,13 @@ export class BorrowerService {
             throw new BadRequestException(`A borrower with email ${createBorrowerDto.email} already exists.`);
         }
 
+        // Hash the password before saving
+        const hashedPassword = await bcrypt.hash(createBorrowerDto.password, 10);
+
         // Create a new borrower entity
         const borrower = this.borrowerRepository.create({
             ...createBorrowerDto,
+            password: hashedPassword,
             registeredDate: new Date(),
         });
 
@@ -79,6 +84,11 @@ export class BorrowerService {
             }
         }
 
+        // If the password is being updated, hash it
+        if (updateBorrowerDto.password) {
+            updateBorrowerDto.password = await bcrypt.hash(updateBorrowerDto.password, 10);
+        }
+
         // Update the borrower entity
         Object.assign(borrower, updateBorrowerDto);
 
@@ -103,5 +113,14 @@ export class BorrowerService {
         }
 
         return this.borrowerRepository.remove(borrower);
+    }
+
+    async findByEmail(email: string) {
+        const borrower = await this.borrowerRepository.findOneBy({ email });
+        if (!borrower) {
+            throw new BadRequestException(`Borrower with email ${email} not found.`);
+        }
+
+        return borrower;
     }
 }

@@ -1,6 +1,6 @@
-import { Body, ClassSerializerInterceptor, Controller, DefaultValuePipe, Get, HttpCode, Param, ParseDatePipe, ParseEnumPipe, Patch, Post, Query, StreamableFile, UseInterceptors } from '@nestjs/common';
+import { Body, ClassSerializerInterceptor, Controller, DefaultValuePipe, Get, HttpCode, Param, ParseDatePipe, ParseEnumPipe, Patch, Post, Query, StreamableFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { BorrowService } from './borrow.service';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBasicAuth, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { BorrowDto } from './dto/borrow.dto';
 import { CheckoutBorrowDto } from './dto/checkout-borrow.dto';
 import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
@@ -8,6 +8,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { ExportBorrowsWithPeriodDto } from './dto/export-borrows-with-period.dto';
 import { ExportBorrowsDto, ExportFormat } from './dto/export-borrows.dto';
 import { FindAllBorrowsByBorrowerDto } from './dto/find-borrows-by-borrower.dto';
+import { BasicAuthGuard } from 'src/auth/basic-auth.gaurd';
 
 @Controller('borrow')
 @ApiExtraModels(BorrowDto)
@@ -39,9 +40,11 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while borrowing the book.',
     })
+    @ApiBasicAuth('basic-auth')
     @Post()
     @HttpCode(201)
     @UseInterceptors(ClassSerializerInterceptor)
+    @UseGuards(BasicAuthGuard)
     async borrow(@Body() borrowDto: CheckoutBorrowDto) {
         const borrow = await this.borrowService.borrow(borrowDto);
         
@@ -82,8 +85,10 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while retrieving the borrows.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get()
     @UseInterceptors(ClassSerializerInterceptor)
+    @UseGuards(BasicAuthGuard)
     async findAll(
         @Query() pagination: PaginationDto,
     ) {
@@ -108,7 +113,9 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while generating the export file.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get('export')
+    @UseGuards(BasicAuthGuard)
     async exportAll(
         @Query() exportWithPeriodQuery: ExportBorrowsWithPeriodDto,
     ) {
@@ -133,7 +140,9 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while generating the export file.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get('export/last-month')
+    @UseGuards(BasicAuthGuard)
     async exportAllInLastMonth(
         @Query() exportQuery: ExportBorrowsDto,
     ) {
@@ -158,7 +167,9 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while generating the export file.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get('export/overdue')
+    @UseGuards(BasicAuthGuard)
     async exportAllOverdue(
         @Query() exportQuery: ExportBorrowsDto,
     ) {
@@ -211,8 +222,10 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while retrieving the borrows for the specified borrower.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get('borrower/:borrowerId')
     @UseInterceptors(ClassSerializerInterceptor)
+    @UseGuards(BasicAuthGuard)
     async findAllByBorrowerId(
         @Query() findAllByBorrowerDto: FindAllBorrowsByBorrowerDto,
     ) {
@@ -255,8 +268,10 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while retrieving the overdue borrows.',
     })
+    @ApiBasicAuth('basic-auth')
     @Get('overdue')
     @UseInterceptors(ClassSerializerInterceptor)
+    @UseGuards(BasicAuthGuard)
     async findAllOverdue(
         @Query() pagination: PaginationDto,
     ) {
@@ -298,8 +313,10 @@ export class BorrowController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while returning the book.',
     })
+    @ApiBasicAuth('basic-auth')
     @Patch(':borrowId/return')
     @UseInterceptors(ClassSerializerInterceptor)
+    @UseGuards(BasicAuthGuard)
     async returnBook(@Param('borrowId', new ParsePositiveIntPipe('borrowId')) borrowId: number) {
         const borrow = await this.borrowService.returnBook(borrowId);
         

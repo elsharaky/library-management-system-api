@@ -1,12 +1,13 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBasicAuth, ApiCreatedResponse, ApiExtraModels, ApiInternalServerErrorResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, getSchemaPath } from '@nestjs/swagger';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { BookDto } from './dto/book.dto';
 import { ParsePositiveIntPipe } from 'src/common/pipes/parse-positive-int.pipe';
 import { SearchBookDto } from './dto/search-book.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { BasicAuthGuard } from 'src/auth/basic-auth.gaurd';
 
 @Controller('book')
 @ApiExtraModels(BookDto)
@@ -35,8 +36,10 @@ export class BookController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while creating the book.',
     })
+    @ApiBasicAuth('basic-auth')
     @Post()
     @HttpCode(201)
+    @UseGuards(BasicAuthGuard)
     async create(@Body() createBookDto: CreateBookDto) {
         const book = await this.bookService.create(createBookDto);
         return {
@@ -190,8 +193,10 @@ export class BookController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while updating the book.',
     })
+    @ApiBasicAuth('basic-auth')
     @Patch(':id')
     @HttpCode(200)
+    @UseGuards(BasicAuthGuard)
     async update(@Param('id', new ParsePositiveIntPipe('id')) id: number, @Body() updateBookDto: UpdateBookDto) {
         const book = await this.bookService.update(id, updateBookDto);
         
@@ -224,8 +229,10 @@ export class BookController {
     @ApiInternalServerErrorResponse({
         description: 'An error occurred while deleting the book.',
     })
+    @ApiBasicAuth('basic-auth')
     @Delete(':id')
     @HttpCode(204)
+    @UseGuards(BasicAuthGuard)
     async remove(@Param('id', new ParsePositiveIntPipe('id')) id: number) {
         await this.bookService.remove(id);
         

@@ -8,6 +8,7 @@ import { BorrowerModule } from './borrower/borrower.module';
 import { BorrowModule } from './borrow/borrow.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -40,7 +41,8 @@ import { APP_GUARD } from '@nestjs/core';
     }),
     BookModule,
     BorrowerModule,
-    BorrowModule
+    BorrowModule,
+    HealthModule
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

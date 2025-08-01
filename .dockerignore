@@ -1,0 +1,24 @@
+# Node modules on host are irrelevant inside image
+node_modules
+
+# Build output (it’ll be rebuilt in container anyway)
+dist
+
+# Logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Local env files (use Docker envs instead)
+.env
+
+# Version control
+.git
+.gitignore
+
+# OS files
+.DS_Store
+
+# Editor folders
+.vscode
+.idea

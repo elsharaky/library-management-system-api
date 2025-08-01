@@ -31,6 +31,11 @@ async function bootstrap() {
     .setTitle(configService.getOrThrow<string>('API_TITLE'))
     .setDescription(configService.getOrThrow<string>('API_DESCRIPTION'))
     .setVersion(configService.getOrThrow<string>('API_VERSION'))
+    .addBasicAuth({
+      type: 'http',
+      scheme: 'basic',
+      in: 'header',
+    }, 'basic-auth')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup(configService.getOrThrow<string>('API_DOCS_PATH'), app, document);

@@ -1,5 +1,6 @@
+import { Exclude } from "class-transformer";
 import { Borrow } from "src/borrow/entities/borrow.entity";
-import { Check, Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 @Index(['email'], { unique: true })
@@ -12,6 +13,10 @@ export class Borrower {
 
   @Column({ length: 255 })
   email: string;
+
+  @Column()
+  @Exclude()
+  password: string;
 
   @Column()
   registeredDate: Date;
